@@ -244,7 +244,7 @@ sudo ./litetrace dump
 
 ## 测试
 
-这个项目带了一个简单的脚本测试，主要是针对“假 tracing 目录”做功能验证，不会真的改系统里的 ftrace。
+这个项目带了一个简单的脚本测试，主要是针对"假 tracing 目录"做功能验证，不会真的改系统里的 ftrace。
 
 运行方法：
 
@@ -282,7 +282,7 @@ chmod +x demo.sh
 - 没做 `function_graph`
 - 没做 events / trigger / pid 过滤
 - 没做复杂输出格式化
-- 更偏向“把题目要求做出来”，不是完整生产工具
+- 更偏向"把题目要求做出来"，不是完整生产工具
 
 ---
 
@@ -297,6 +297,35 @@ chmod +x demo.sh
 
 ---
 
+## 作业要求对照
+
+本次作业的 5 个要求，都在本项目中覆盖：
+
+| 作业要求 | 实现方式 |
+|---------|---------|
+| 支持打开 function 跟踪 | `./litetrace init` + `./litetrace on` |
+| 支持 function 过滤 | `./litetrace filter set <func>` |
+| 支持动态开启和关闭跟踪 | `./litetrace on` / `./litetrace off` |
+| 支持查看当前配置状态 | `./litetrace status` |
+| 支持导出跟踪结果 | `./litetrace dump` |
+
+详情见：`docs/SUBMISSION.md`
+
+---
+
 ## 一句话总结
 
 `litetrace` 就是一个**把 ftrace 课程作业里几个常用 sysfs 操作包起来的小脚本**。能看状态，能开关 tracing，能设 filter，也能把 trace 打出来。
+
+---
+
+## 项目结构
+
+```text
+litetrace                 # 核心 CLI 工具
+demo.sh                   # 模拟演示（无需 root / tracing 目录）
+tests/test_litetrace.sh   # 功能测试脚本
+docs/
+├─ SUBMISSION.md          # 作业提交说明 + 要求对照
+└─ USAGE-EXAMPLE.md       # 详细使用示例
+```
