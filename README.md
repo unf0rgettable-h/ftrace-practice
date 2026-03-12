@@ -1,28 +1,18 @@
 # ftrace-practice
 
-这是一个很朴素的课程作业项目：
+这个仓库是我为了 ftrace 相关课程作业写的一个小工具，名字叫 `litetrace`。
 
-我把 Linux 里和 `ftrace` 相关的几个常用文件，封装成了一个简单命令行工具 `litetrace`。
+它本质上没什么玄乎的，就是把 `/sys/kernel/debug/tracing` 下面几个常用文件包了一层，省得每次都手敲一堆 `echo` 和 `cat`。
 
-它不是完整版 `trace-cmd`，也不是很花哨的工程项目，目标很直接：**把作业要求做出来，并且让人一眼能看懂。**
+这不是正式版 `trace-cmd`，也不是一个大而全的 tracing 项目。它就是一个作业级的小脚本，目标很简单：
 
----
+- 能按题目要求完成功能
+- 命令别太难记
+- README 让人能顺着跑下来
 
-## 这个小工具能做什么
+## 这个工具能干什么
 
-`litetrace` 目前支持这些操作：
-
-- 查看当前 tracing 状态
-- 打开 tracing
-- 关闭 tracing
-- 清空旧的 trace 内容
-- 设置函数过滤器
-- 查看函数过滤器
-- 清空函数过滤器
-- 导出 trace 内容
-- 初始化为作业里最常用的 `function` 模式
-
-对应命令：
+现在支持这些命令：
 
 ```bash
 ./litetrace status
@@ -36,126 +26,77 @@
 ./litetrace filter clear
 ```
 
----
+对应功能也很直接：
 
-## 这个作业到底在操作什么
+- 看当前状态
+- 初始化到 `function` 模式
+- 开 / 关 tracing
+- 清空旧 trace
+- 设置 / 查看 / 清空函数过滤器
+- 把 trace 内容打印出来
 
-Linux 的 ftrace 常见工作目录一般是：
+## 这个作业实际上在操作什么
+
+ftrace 常用目录一般在这里：
 
 ```bash
 /sys/kernel/debug/tracing
 ```
 
-这次作业主要用到了下面几个文件：
+这次主要碰到的文件有 4 个：
 
-- `current_tracer`：当前使用的 tracer 类型
-- `tracing_on`：当前 tracing 开关，`1` 表示开，`0` 表示关
-- `set_ftrace_filter`：函数过滤器，只跟踪指定函数
-- `trace`：跟踪结果输出
+- `current_tracer`
+- `tracing_on`
+- `set_ftrace_filter`
+- `trace`
 
-这个脚本本质上就是把平时手工写的：
+平时手动操作大概长这样：
 
 ```bash
 echo function > current_tracer
+echo vfs_write > set_ftrace_filter
 echo 1 > tracing_on
 cat trace
 ```
 
-变成了比较好记的命令。
+我这个脚本干的事，就是把这些操作换成稍微正常一点的命令。
 
----
+## 怎么跑
 
-## 运行前提
-
-### 1）系统环境
-建议在 Linux 环境运行。
-
-### 2）需要有 tracing 目录
-一般要先确认这个目录存在：
-
-```bash
-ls /sys/kernel/debug/tracing
-```
-
-如果这个目录不存在，通常是下面几种情况：
-
-- `debugfs` 没挂载
-- 当前环境不支持
-- 不是 Linux
-- 权限不够
-
-### 3）通常需要 root 权限
-因为这个工具要往 `/sys/kernel/debug/tracing` 下面写文件，所以很多时候需要：
-
-```bash
-sudo ./litetrace status
-```
-
-或者：
-
-```bash
-sudo ./litetrace on
-```
-
----
-
-## 快速开始
-
-### 第一步：给脚本执行权限
+先给脚本执行权限：
 
 ```bash
 chmod +x litetrace
 ```
 
-### 第二步：初始化
+如果你是在真实 Linux 环境里跑，一般要带 `sudo`，因为 tracing 目录通常需要 root 权限。
+
+### 一套最基本的流程
 
 ```bash
 sudo ./litetrace init
-```
-
-这一步会做三件事：
-
-- 把 `current_tracer` 设成 `function`
-- 清空旧的 trace
-- 把 `tracing_on` 设成 `0`
-
-### 第三步：设置要跟踪的函数（可选）
-
-```bash
 sudo ./litetrace filter set vfs_write
-```
-
-### 第四步：开启 tracing
-
-```bash
 sudo ./litetrace on
-```
-
-### 第五步：执行你的目标操作
-比如跑一下会触发该函数的程序。
-
-### 第六步：关闭 tracing
-
-```bash
+# 这里执行你自己的测试操作
 sudo ./litetrace off
-```
-
-### 第七步：查看结果
-
-```bash
 sudo ./litetrace dump
 ```
 
----
+上面这套流程差不多就是这次作业最核心的用法。
 
-## 命令说明
+## 每个命令是干嘛的
 
-### `status`
-查看当前状态。
+### `./litetrace init`
+把环境先整理好。
 
-```bash
-./litetrace status
-```
+它会做三件事：
+
+- 把 `current_tracer` 设成 `function`
+- 清空旧的 `trace`
+- 把 `tracing_on` 设成 `0`
+
+### `./litetrace status`
+看当前状态。
 
 示例输出：
 
@@ -165,167 +106,132 @@ tracing_on: 1
 set_ftrace_filter: vfs_write
 ```
 
-如果过滤器是空的，会显示：
+如果 filter 还没设置，会显示：
 
 ```text
 set_ftrace_filter: (empty)
 ```
 
-### `init`
-初始化成比较适合这次作业的状态。
-
-```bash
-./litetrace init
-```
-
-### `on`
+### `./litetrace on`
 打开 tracing。
 
-```bash
-./litetrace on
-```
-
-### `off`
+### `./litetrace off`
 关闭 tracing。
 
-```bash
-./litetrace off
-```
+### `./litetrace clear`
+清空旧的 trace 内容。
 
-### `clear`
-清空 trace 文件里的旧内容。
+### `./litetrace dump`
+把 trace 打到终端上。
 
-```bash
-./litetrace clear
-```
-
-### `dump`
-打印 trace 内容。
-
-```bash
-./litetrace dump
-```
-
-### `filter set <function>`
+### `./litetrace filter set <function>`
 设置函数过滤器。
 
-```bash
-./litetrace filter set vfs_write
-```
-
-### `filter show`
-查看当前过滤器。
+比如：
 
 ```bash
-./litetrace filter show
-```
-
-### `filter clear`
-清空当前过滤器。
-
-```bash
-./litetrace filter clear
-```
-
----
-
-## 一个最简单的使用流程
-
-```bash
-sudo ./litetrace init
 sudo ./litetrace filter set vfs_write
-sudo ./litetrace on
-# 这里执行你的测试操作
-sudo ./litetrace off
-sudo ./litetrace dump
 ```
 
----
+### `./litetrace filter show`
+查看当前 filter。
 
-## 测试
+### `./litetrace filter clear`
+清空当前 filter。
 
-这个项目带了一个简单的脚本测试，主要是针对"假 tracing 目录"做功能验证，不会真的改系统里的 ftrace。
+## 运行前先注意这几点
 
-运行方法：
+### 1. 最好在 Linux 上跑
+这个脚本默认就是按 Linux 的 ftrace 路径写的。
+
+### 2. tracing 目录得存在
+先看一下：
 
 ```bash
-chmod +x tests/test_litetrace.sh
-./tests/test_litetrace.sh
+ls /sys/kernel/debug/tracing
 ```
 
-如果测试通过，会看到：
+如果这里都没有，那后面的命令肯定跑不起来。
 
-```text
-PASS: all tests passed
-```
+常见原因一般是：
 
----
+- `debugfs` 没挂载
+- 当前系统不支持
+- 权限不够
+- 不是 Linux 环境
 
-## demo
+### 3. 大多数情况下需要 root
+因为要往 tracing 目录里写东西，所以很多命令都得 `sudo`。
 
-如果你只是想看看脚本怎么工作，但手头环境又没有真的 `/sys/kernel/debug/tracing`，可以跑：
+## 如果你只是想看效果
+这个仓库带了一个 `demo.sh`，不需要真实 tracing 环境也能跑。
 
 ```bash
 chmod +x demo.sh
 ./demo.sh
 ```
 
-它会用一个临时目录模拟 tracing 文件，方便看效果。
+它会用一个临时目录假装成 tracing 目录，所以比较适合演示命令流程。
 
----
+## 测试
 
-## 已知限制
+我写了一个很简单的测试脚本：
 
-这个项目是课程作业风格的小工具，所以有一些明显限制：
+```bash
+chmod +x tests/test_litetrace.sh
+./tests/test_litetrace.sh
+```
 
-- 只做了 `function` tracer 这一条主线
-- 没做 `function_graph`
-- 没做 events / trigger / pid 过滤
-- 没做复杂输出格式化
-- 更偏向"把题目要求做出来"，不是完整生产工具
+如果通过，会看到：
 
----
+```text
+PASS: all tests passed
+```
 
-## 后面如果还想继续加
+这个测试不是去改你系统里的真实 ftrace，而是拿一个模拟目录来测逻辑，所以比较安全。
 
-如果以后还要继续扩，可以考虑：
+## 这份作业和题目要求怎么对应
 
-- 支持 `function_graph`
-- 支持输出到文件
-- 支持检查某个函数是否存在于 `available_filter_functions`
-- 支持更完整的错误提示
+题目里提到的几个点，这个项目都覆盖了：
 
----
-
-## 作业要求对照
-
-本次作业的 5 个要求，都在本项目中覆盖：
-
-| 作业要求 | 实现方式 |
+| 作业要求 | 对应命令 |
 |---------|---------|
-| 支持打开 function 跟踪 | `./litetrace init` + `./litetrace on` |
-| 支持 function 过滤 | `./litetrace filter set <func>` |
-| 支持动态开启和关闭跟踪 | `./litetrace on` / `./litetrace off` |
-| 支持查看当前配置状态 | `./litetrace status` |
-| 支持导出跟踪结果 | `./litetrace dump` |
+| 打开 function 跟踪 | `./litetrace init` + `./litetrace on` |
+| function 过滤 | `./litetrace filter set <func>` |
+| 动态开关 tracing | `./litetrace on` / `./litetrace off` |
+| 查看当前配置状态 | `./litetrace status` |
+| 导出跟踪结果 | `./litetrace dump` |
 
-详情见：`docs/SUBMISSION.md`
+更细一点的说明我放在：
 
----
+- `docs/SUBMISSION.md`
+- `docs/USAGE-EXAMPLE.md`
 
-## 一句话总结
+## 目前没做的东西
 
-`litetrace` 就是一个**把 ftrace 课程作业里几个常用 sysfs 操作包起来的小脚本**。能看状态，能开关 tracing，能设 filter，也能把 trace 打出来。
+这项目就是按作业范围收着写的，所以有些东西我没继续往下做：
 
----
+- 没做 `function_graph`
+- 没做 event 跟踪
+- 没做 trigger
+- 没做 pid 过滤
+- 没做更复杂的输出格式
+
+说白了，这个版本够交作业，也够演示，但还谈不上完整。
 
 ## 项目结构
 
 ```text
-litetrace                 # 核心 CLI 工具
-demo.sh                   # 模拟演示（无需 root / tracing 目录）
-tests/test_litetrace.sh   # 功能测试脚本
+litetrace                 # 主脚本
+demo.sh                   # 模拟演示
+tests/test_litetrace.sh   # 简单测试
 docs/
-├─ SUBMISSION.md          # 作业提交说明 + 要求对照
-└─ USAGE-EXAMPLE.md       # 详细使用示例
+├─ SUBMISSION.md          # 作业要求对照
+└─ USAGE-EXAMPLE.md       # 使用示例
 ```
+
+## 最后一句
+
+如果只用一句话说这个仓库在干嘛，那就是：
+
+**把 ftrace 作业里最常用的几个操作包成了一个小脚本，省得手敲 sysfs。**
