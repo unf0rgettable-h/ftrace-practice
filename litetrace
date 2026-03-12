@@ -1,0 +1,152 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+TRACING_ROOT="${LITETRACE_ROOT:-/sys/kernel/debug/tracing}"
+
+usage() {
+  cat <<'EOF'
+用法：
+  litetrace status
+  litetrace init
+  litetrace on
+  litetrace off
+  litetrace clear
+  litetrace dump
+  litetrace filter set <function>
+  litetrace filter show
+  litetrace filter clear
+EOF
+}
+
+error() {
+  echo "Error: $*" >&2
+  exit 1
+}
+
+require_root_dir() {
+  [[ -d "$TRACING_ROOT" ]] || error "tracing 目录不存在：$TRACING_ROOT"
+}
+
+require_file() {
+  local path="$1"
+  [[ -f "$path" ]] || error "缺少文件：$path"
+}
+
+read_value() {
+  local file="$1"
+  require_file "$file"
+  tr -d '\n' < "$file"
+}
+
+write_value() {
+  local file="$1"
+  local value="${2-}"
+  require_file "$file"
+  printf '%s' "$value" > "$file"
+}
+
+status_cmd() {
+  echo "current_tracer: $(read_value "$TRACING_ROOT/current_tracer")"
+  echo "tracing_on: $(read_value "$TRACING_ROOT/tracing_on")"
+
+  local filter_value
+  filter_value="$(read_value "$TRACING_ROOT/set_ftrace_filter")"
+  if [[ -z "$filter_value" ]]; then
+    echo "set_ftrace_filter: (empty)"
+  else
+    echo "set_ftrace_filter: $filter_value"
+  fi
+}
+
+init_cmd() {
+  write_value "$TRACING_ROOT/current_tracer" 'function'
+  : > "$TRACING_ROOT/trace"
+  write_value "$TRACING_ROOT/tracing_on" '0'
+  echo 'litetrace 已初始化：current_tracer=function, trace 已清空, tracing_on=0'
+}
+
+on_cmd() {
+  write_value "$TRACING_ROOT/tracing_on" '1'
+  echo 'tracing 已开启'
+}
+
+off_cmd() {
+  write_value "$TRACING_ROOT/tracing_on" '0'
+  echo 'tracing 已关闭'
+}
+
+clear_cmd() {
+  : > "$TRACING_ROOT/trace"
+  echo 'trace 已清空'
+}
+
+filter_cmd() {
+  local subcmd="${1-}"
+  case "$subcmd" in
+    set)
+      local function_name="${2-}"
+      [[ -n "$function_name" ]] || error '请提供函数名，例如：litetrace filter set vfs_write'
+      write_value "$TRACING_ROOT/set_ftrace_filter" "$function_name"
+      echo "filter 已设置：$function_name"
+      ;;
+    show)
+      local filter_value
+      filter_value="$(read_value "$TRACING_ROOT/set_ftrace_filter")"
+      if [[ -z "$filter_value" ]]; then
+        echo '(empty)'
+      else
+        echo "$filter_value"
+      fi
+      ;;
+    clear)
+      : > "$TRACING_ROOT/set_ftrace_filter"
+      echo 'filter 已清空'
+      ;;
+    *)
+      error 'filter 子命令只支持：set / show / clear'
+      ;;
+  esac
+}
+
+dump_cmd() {
+  require_file "$TRACING_ROOT/trace"
+  cat "$TRACING_ROOT/trace"
+}
+
+main() {
+  require_root_dir
+
+  local cmd="${1-}"
+  case "$cmd" in
+    status)
+      status_cmd
+      ;;
+    init)
+      init_cmd
+      ;;
+    on)
+      on_cmd
+      ;;
+    off)
+      off_cmd
+      ;;
+    clear)
+      clear_cmd
+      ;;
+    dump)
+      dump_cmd
+      ;;
+    filter)
+      shift || true
+      filter_cmd "$@"
+      ;;
+    help|-h|--help|'')
+      usage
+      ;;
+    *)
+      error "不支持的命令：$cmd"
+      ;;
+  esac
+}
+
+main "$@"
